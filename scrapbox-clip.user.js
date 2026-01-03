@@ -49,8 +49,11 @@
   // Scrapbox API Functions
   // ========================================
 
+  // Store CSRF token for API requests
+  let csrfToken = null;
+
   /**
-   * Check if user is logged into Scrapbox
+   * Check if user is logged into Scrapbox and get CSRF token
    */
   function checkScrapboxLogin() {
     return new Promise((resolve, reject) => {
@@ -63,6 +66,8 @@
             try {
               const user = JSON.parse(response.responseText);
               if (user && !user.isGuest && user.id) {
+                // Store CSRF token for later use
+                csrfToken = user.csrfToken || null;
                 resolve(user);
               } else {
                 reject(new Error('Not logged in'));
@@ -96,12 +101,17 @@
         ],
       };
 
+      const headers = {
+        'Content-Type': 'application/json;charset=utf-8',
+      };
+      if (csrfToken) {
+        headers['X-CSRF-TOKEN'] = csrfToken;
+      }
+
       GM_xmlhttpRequest({
         method: 'POST',
         url: `${SCRAPBOX_API_BASE}/page-data/import/${encodeURIComponent(project)}.json`,
-        headers: {
-          'Content-Type': 'application/json;charset=utf-8',
-        },
+        headers: headers,
         data: JSON.stringify(importData),
         anonymous: false,
         onload: (response) => {
