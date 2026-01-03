@@ -90,52 +90,54 @@
    * Import pages to Scrapbox project
    * Uses the import API to create/update pages
    */
-  function importPageToScrapbox(project, title, lines) {
-    return new Promise((resolve, reject) => {
-      const importData = JSON.stringify({
-        pages: [
-          {
-            title: title,
-            lines: lines,
-          },
-        ],
-      });
-
-      // Create a Blob to simulate file upload
-      const blob = new Blob([importData], { type: 'application/json' });
-      const formData = new FormData();
-      formData.append('import-file', blob, 'import.json');
-
-      const url = `${SCRAPBOX_API_BASE}/page-data/import/${encodeURIComponent(project)}.json`;
-
-      console.log('Scrapbox Import Request:', { url, title, lines });
-
-      GM_xmlhttpRequest({
-        method: 'POST',
-        url: url,
-        headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {},
-        data: formData,
-        anonymous: false,
-        onload: (response) => {
-          console.log('Scrapbox Import Response:', response.status, response.responseText);
-          if (response.status === 200) {
-            try {
-              const result = JSON.parse(response.responseText);
-              resolve(result);
-            } catch {
-              resolve({ success: true });
-            }
-          } else if (response.status === 401 || response.status === 403) {
-            reject(new Error('Not authorized. Please login to Scrapbox first.'));
-          } else {
-            reject(new Error(`API Error: HTTP ${response.status} - ${response.responseText}`));
-          }
+  async function importPageToScrapbox(project, title, lines) {
+    const importData = JSON.stringify({
+      pages: [
+        {
+          title: title,
+          lines: lines,
         },
-        onerror: () => {
-          reject(new Error('Network error. Please check your connection.'));
-        },
-      });
+      ],
     });
+
+    // Create FormData with file upload (must use application/octet-stream)
+    const blob = new Blob([importData], { type: 'application/octet-stream' });
+    const formData = new FormData();
+    formData.append('import-file', blob, 'import.json');
+    formData.append('name', 'undefined');
+
+    const url = `${SCRAPBOX_API_BASE}/page-data/import/${encodeURIComponent(project)}.json`;
+
+    console.log('Scrapbox Import Request:', { url, title, lines });
+
+    const headers = {
+      Accept: 'application/json, text/plain, */*',
+    };
+    if (csrfToken) {
+      headers['X-CSRF-TOKEN'] = csrfToken;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+      credentials: 'include',
+    });
+
+    console.log('Scrapbox Import Response:', response.status);
+
+    if (response.ok) {
+      try {
+        return await response.json();
+      } catch {
+        return { success: true };
+      }
+    } else if (response.status === 401 || response.status === 403) {
+      throw new Error('Not authorized. Please login to Scrapbox first.');
+    } else {
+      const text = await response.text();
+      throw new Error(`API Error: HTTP ${response.status} - ${text}`);
+    }
   }
 
   /**
