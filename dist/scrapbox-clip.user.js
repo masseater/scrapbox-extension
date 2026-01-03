@@ -13,6 +13,7 @@
 // @grant        GM_openInTab
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function () {
@@ -22,6 +23,7 @@
   var _GM_openInTab = /* @__PURE__ */ (() => typeof GM_openInTab != "undefined" ? GM_openInTab : void 0)();
   var _GM_registerMenuCommand = /* @__PURE__ */ (() => typeof GM_registerMenuCommand != "undefined" ? GM_registerMenuCommand : void 0)();
   var _GM_setValue = /* @__PURE__ */ (() => typeof GM_setValue != "undefined" ? GM_setValue : void 0)();
+  var _GM_xmlhttpRequest = /* @__PURE__ */ (() => typeof GM_xmlhttpRequest != "undefined" ? GM_xmlhttpRequest : void 0)();
   const CONFIG_KEYS = {
     PROJECT: "scrapbox_project",
     AUTO_OPEN: "scrapbox_auto_open"
@@ -104,7 +106,7 @@
   const ERR_MSG_CALLED_WITH$1 = "called with ";
   const ERR_TYPE_STR$1 = "`Err`";
   const ERR_MSG_UNWRAP_OK_BUT_INPUT_IS_ERR$1 = ERR_MSG_CALLED_WITH$1 + ERR_TYPE_STR$1;
-  function createOk(val) {
+  function createOk$1(val) {
     const r = {
       ok: true,
       val,
@@ -118,7 +120,7 @@
   function isErr$1(input) {
     return !input.ok;
   }
-  function createErr(err) {
+  function createErr$1(err) {
     const r = {
       ok: false,
       // XXX:
@@ -149,7 +151,7 @@
     }
     const val = unsafeUnwrapValueInOkWithoutAnyCheck(input);
     const result = transformer(val);
-    return createOk(result);
+    return createOk$1(result);
   }
   async function mapAsyncForResult(input, transformer) {
     if (isErr$1(input)) {
@@ -158,28 +160,28 @@
     }
     const inner = unsafeUnwrapValueInOkWithoutAnyCheck(input);
     const mapped = await transformer(inner);
-    const result = createOk(mapped);
+    const result = createOk$1(mapped);
     return result;
   }
-  const responseIntoResult = (response) => !response.ok ? createErr({
+  const responseIntoResult = (response) => !response.ok ? createErr$1({
     name: "HTTPError",
     message: `${response.status} ${response.statusText}`,
     response
-  }) : createOk(response);
+  }) : createOk$1(response);
   const robustFetch = async (input, init2) => {
     const request = new Request(input, init2);
     try {
-      return createOk(await globalThis.fetch(request));
+      return createOk$1(await globalThis.fetch(request));
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
-        return createErr({
+        return createErr$1({
           name: "AbortError",
           message: e.message,
           request
         });
       }
       if (e instanceof TypeError) {
-        return createErr({
+        return createErr$1({
           name: "NetworkError",
           message: e.message,
           request
@@ -209,13 +211,13 @@
   })();
   const cookie = (sid) => `connect.sid=${sid}`;
   const getCSRFToken = async (init2) => {
-    const csrf = dntGlobalThis._csrf;
-    return csrf ? createOk(csrf) : mapForResult(await getProfile(init2), (user) => user.csrfToken);
+    const csrf = (init2 == null ? void 0 : init2.csrf) ?? dntGlobalThis._csrf;
+    return csrf ? createOk$1(csrf) : mapForResult(await getProfile(init2), (user) => user.csrfToken);
   };
   const importPages = async (project, data, init2) => {
     if (data.pages.length === 0)
-      return createOk("No pages to import.");
-    const { sid, hostName, fetch } = setDefaults({});
+      return createOk$1("No pages to import.");
+    const { sid, hostName, fetch } = setDefaults(init2 ?? {});
     const formData = new FormData();
     formData.append("import-file", new Blob([JSON.stringify(data)], {
       type: "application/octet-stream"
@@ -249,8 +251,30 @@
   const ERR_MSG_CALLED_WITH = "called with ";
   const ERR_TYPE_STR = "`Err`";
   const ERR_MSG_UNWRAP_OK_BUT_INPUT_IS_ERR = ERR_MSG_CALLED_WITH + ERR_TYPE_STR;
+  function createOk(val) {
+    const r = {
+      ok: true,
+      val,
+      // XXX:
+      //  We need to fill with `null` to improve the compatibility with Next.js
+      //  see https://github.com/option-t/option-t/pull/1256
+      err: null
+    };
+    return r;
+  }
   function isErr(input) {
     return !input.ok;
+  }
+  function createErr(err) {
+    const r = {
+      ok: false,
+      // XXX:
+      //  We need to fill with `null` to improve the compatibility with Next.js
+      //  see https://github.com/option-t/option-t/pull/1256
+      val: null,
+      err
+    };
+    return r;
   }
   function unwrapOk(input) {
     return expectOk(input, ERR_MSG_UNWRAP_OK_BUT_INPUT_IS_ERR);
@@ -262,11 +286,73 @@
     const val = input.val;
     return val;
   }
+  const gmFetch = async (input, init2) => {
+    const request = new Request(input, init2);
+    const url = request.url;
+    const method = request.method;
+    const headers = {};
+    request.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "content-type" || !((init2 == null ? void 0 : init2.body) instanceof FormData)) {
+        headers[key] = value;
+      }
+    });
+    let data;
+    if ((init2 == null ? void 0 : init2.body) instanceof FormData) {
+      data = init2.body;
+    } else if (request.body) {
+      data = await request.text();
+    }
+    return new Promise((resolve) => {
+      _GM_xmlhttpRequest({
+        method,
+        url,
+        headers,
+        data,
+        anonymous: false,
+        // Send cookies
+        responseType: "blob",
+        onload: (response) => {
+          const responseHeaders = new Headers();
+          response.responseHeaders.split("\r\n").forEach((line) => {
+            const [key, ...valueParts] = line.split(":");
+            if (key && valueParts.length > 0) {
+              responseHeaders.set(key.trim(), valueParts.join(":").trim());
+            }
+          });
+          const res = new Response(response.response, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: responseHeaders
+          });
+          resolve(createOk(res));
+        },
+        onerror: (error) => {
+          resolve(
+            createErr({
+              name: "NetworkError",
+              message: error.error || "Network error",
+              request
+            })
+          );
+        },
+        onabort: () => {
+          resolve(
+            createErr({
+              name: "AbortError",
+              message: "Request aborted",
+              request
+            })
+          );
+        }
+      });
+    });
+  };
+  const fetchOptions = { fetch: gmFetch };
   function isLoggedIn(user) {
     return "id" in user && !("isGuest" in user && user.isGuest);
   }
   async function checkScrapboxLogin() {
-    const result = await getProfile();
+    const result = await getProfile(fetchOptions);
     if (isErr(result)) {
       throw new Error("Failed to get profile");
     }
@@ -277,9 +363,11 @@
     return user;
   }
   async function importPageToScrapbox(project, title, lines) {
-    const result = await importPages(project, {
-      pages: [{ title, lines }]
-    });
+    const result = await importPages(
+      project,
+      { pages: [{ title, lines }] },
+      fetchOptions
+    );
     if (isErr(result)) {
       throw new Error(`Import failed: ${JSON.stringify(result)}`);
     }
