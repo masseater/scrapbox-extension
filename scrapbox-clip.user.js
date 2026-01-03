@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scrapbox Clip - Save to Scrapbox
 // @namespace    https://github.com/your-username/scrapbox-clip
-// @version      2.0.1
+// @version      0.0.1
 // @description  Save current page title, URL, and selected text to Scrapbox via API
 // @author       You
 // @match        *://*/*
