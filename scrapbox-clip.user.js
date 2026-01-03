@@ -115,6 +115,7 @@
         data: JSON.stringify(importData),
         anonymous: false,
         onload: (response) => {
+          console.log('Scrapbox Import Response:', response.status, response.responseText);
           if (response.status === 200) {
             try {
               const result = JSON.parse(response.responseText);
@@ -126,7 +127,7 @@
           } else if (response.status === 401 || response.status === 403) {
             reject(new Error('Not authorized. Please login to Scrapbox first.'));
           } else {
-            reject(new Error(`API Error: HTTP ${response.status}`));
+            reject(new Error(`API Error: HTTP ${response.status} - ${response.responseText}`));
           }
         },
         onerror: () => {
