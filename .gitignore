@@ -6,3 +6,5 @@ node_modules/
 # Ignore JS files except in dist/
 *.js
 !dist/**/*.js
+
+!.claude/
