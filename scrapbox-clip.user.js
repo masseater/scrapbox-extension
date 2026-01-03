@@ -62,7 +62,7 @@
           if (response.status === 200) {
             try {
               const user = JSON.parse(response.responseText);
-              if (user && user.id) {
+              if (user && !user.isGuest && user.id) {
                 resolve(user);
               } else {
                 reject(new Error('Not logged in'));
@@ -470,8 +470,6 @@
 
       if (error.message.includes('Not logged in') || error.message.includes('Not authorized')) {
         showNotification('Please login to Scrapbox first!', 'error', 5000);
-        // Open Scrapbox login page
-        GM_openInTab('https://scrapbox.io/', { active: true });
       } else {
         // Fallback to URL method
         showNotification('API failed, using URL fallback...', 'warning');
