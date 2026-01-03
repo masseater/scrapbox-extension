@@ -604,19 +604,6 @@
   }
 
   // ========================================
-  // Keyboard Shortcut
-  // ========================================
-  function setupKeyboardShortcut() {
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        const selectedText = window.getSelection().toString().trim();
-        createScrapboxPage(selectedText);
-      }
-    });
-  }
-
-  // ========================================
   // Register Menu Commands
   // ========================================
   GM_registerMenuCommand('Save to Scrapbox', () => {
@@ -641,7 +628,6 @@
   // ========================================
   function init() {
     createContextMenu();
-    setupKeyboardShortcut();
   }
 
   if (document.readyState === 'loading') {
