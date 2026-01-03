@@ -108,6 +108,12 @@
         headers['X-CSRF-TOKEN'] = csrfToken;
       }
 
+      console.log('Scrapbox Import Request:', {
+        url: `${SCRAPBOX_API_BASE}/page-data/import/${encodeURIComponent(project)}.json`,
+        headers: headers,
+        data: importData,
+      });
+
       GM_xmlhttpRequest({
         method: 'POST',
         url: `${SCRAPBOX_API_BASE}/page-data/import/${encodeURIComponent(project)}.json`,
@@ -493,9 +499,8 @@
       if (error.message.includes('Not logged in') || error.message.includes('Not authorized')) {
         showNotification('Please login to Scrapbox first!', 'error', 5000);
       } else {
-        // Fallback to URL method
-        showNotification('API failed, using URL fallback...', 'warning');
-        fallbackToUrlMethod(project, pageTitle, pageUrl, selectedText, autoOpen);
+        // Show actual error message
+        showNotification(`Error: ${error.message}`, 'error', 8000);
       }
     }
   }
